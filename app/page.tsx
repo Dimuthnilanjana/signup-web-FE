@@ -1,12 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
-import { Mail, Lock, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, XCircle } from "lucide-react"
 
 interface UserData {
   id: string
@@ -63,169 +61,125 @@ export default function LandingPage() {
   const [signUpErrors, setSignUpErrors] = useState<FormErrors>({})
   const [signInErrors, setSignInErrors] = useState<FormErrors>({})
 
-  // Validation functions
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
-
-  const validatePassword = (password: string): boolean => {
-    return password.length >= 6
-  }
+  const validateEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const validatePassword = (password: string): boolean => password.length >= 6
 
   const validateSignUpForm = (): boolean => {
     const errors: FormErrors = {}
-
-    if (!signUpData.name.trim()) {
-      errors.name = "Name is required"
-    } else if (signUpData.name.trim().length < 2) {
-      errors.name = "Name must be at least 2 characters"
-    }
-
-    if (!signUpData.email.trim()) {
-      errors.email = "Email is required"
-    } else if (!validateEmail(signUpData.email)) {
-      errors.email = "Please enter a valid email address"
-    }
-
-    if (!signUpData.password) {
-      errors.password = "Password is required"
-    } else if (!validatePassword(signUpData.password)) {
-      errors.password = "Password must be at least 6 characters"
-    }
-
-    if (!signUpData.confirmPassword) {
-      errors.confirmPassword = "Please confirm your password"
-    } else if (signUpData.password !== signUpData.confirmPassword) {
-      errors.confirmPassword = "Passwords do not match"
-    }
-
+    if (!signUpData.name.trim()) errors.name = "Name is required"
+    if (!signUpData.email.trim()) errors.email = "Email is required"
+    else if (!validateEmail(signUpData.email)) errors.email = "Invalid email"
+    if (!signUpData.password) errors.password = "Password is required"
+    else if (!validatePassword(signUpData.password)) errors.password = "Min 6 characters"
+    if (!signUpData.confirmPassword) errors.confirmPassword = "Confirm password"
+    else if (signUpData.password !== signUpData.confirmPassword) errors.confirmPassword = "Passwords do not match"
     setSignUpErrors(errors)
     return Object.keys(errors).length === 0
   }
 
   const validateSignInForm = (): boolean => {
     const errors: FormErrors = {}
-
-    if (!signInData.email.trim()) {
-      errors.email = "Email is required"
-    } else if (!validateEmail(signInData.email)) {
-      errors.email = "Please enter a valid email address"
-    }
-
-    if (!signInData.password) {
-      errors.password = "Password is required"
-    }
-
+    if (!signInData.email.trim()) errors.email = "Email is required"
+    else if (!validateEmail(signInData.email)) errors.email = "Invalid email"
+    if (!signInData.password) errors.password = "Password is required"
     setSignInErrors(errors)
     return Object.keys(errors).length === 0
   }
 
-  // API call function
   const createUser = async (userData: { name: string; email: string; password: string }) => {
     try {
-      const response = await fetch("http://localhost:8080/api/users/create", {
+      const res = await fetch("http://localhost:8080/api/users/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
       })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+  
+      const text = await res.text()
+      let result
+      try {
+        result = JSON.parse(text)
+      } catch {
+        result = text
       }
-
-      const result = await response.json()
+  
+      if (!res.ok) {
+        return { success: false, error: typeof result === "string" ? result : "Request failed" }
+      }
+  
       return { success: true, data: result }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
     }
   }
+  
 
-  // Handle sign up
+  const loginUser = async (credentials: { email: string; password: string }) => {
+    try {
+      const res = await fetch("http://localhost:8080/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      })
+      const result = await res.text()
+      if (result === "Login success") return { success: true }
+      return { success: false, error: result }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
+    }
+  }
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!validateSignUpForm()) {
-      return
-    }
-
+    if (!validateSignUpForm()) return
     setIsLoading(true)
-
     const result = await createUser({
       name: signUpData.name,
       email: signUpData.email,
       password: signUpData.password,
     })
-
     setIsLoading(false)
-
     if (result.success) {
-      toast({
-        title: "Success!",
-        description: "Account created successfully. You can now sign in.",
-        duration: 5000,
-      })
+      toast({ title: "Success", description: "Account created. You can now sign in." })
       setIsSignUpOpen(false)
       setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
       setSignUpErrors({})
     } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error || "Failed to create account. Please try again.",
-        duration: 5000,
-      })
+      toast({ variant: "destructive", title: "Error", description: result.error })
     }
   }
 
-  // Handle sign in (mock implementation)
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!validateSignInForm()) {
-      return
-    }
-
+    if (!validateSignInForm()) return
     setIsLoading(true)
-
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Mock successful sign in
-    const mockUser: UserData = {
-      id: "1",
-      name: "John Doe",
+    const result = await loginUser({
       email: signInData.email,
-    }
-
-    setUser(mockUser)
-    setIsLoading(false)
-    setIsSignInOpen(false)
-    setSignInData({ name: "", email: "", password: "" })
-    setSignInErrors({})
-
-    toast({
-      title: "Welcome back!",
-      description: `Successfully signed in as ${mockUser.name}`,
-      duration: 5000,
+      password: signInData.password,
     })
+    setIsLoading(false)
+    if (result.success) {
+      const mockUser: UserData = {
+        id: "1",
+        name: signInData.email.split("@")[0],
+        email: signInData.email,
+      }
+      setUser(mockUser)
+      setIsSignInOpen(false)
+      setSignInData({ name: "", email: "", password: "" })
+      setSignInErrors({})
+      toast({ title: "Welcome back!", description: `Signed in as ${mockUser.name}` })
+    } else {
+      toast({ variant: "destructive", title: "Login failed", description: result.error })
+    }
   }
 
-  // Handle logout
   const handleLogout = () => {
     setUser(null)
-    toast({
-      title: "Signed out",
-      description: "You have been successfully signed out.",
-      duration: 3000,
-    })
+    toast({ title: "Signed out", description: "You have been logged out." })
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -234,15 +188,9 @@ export default function LandingPage() {
           </div>
 
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Features
-            </a>
-            <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors">
-              About
-            </a>
-            <a href="#contact" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Contact
-            </a>
+            <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">Features</a>
+            <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors">About</a>
+            <a href="#contact" className="text-gray-600 hover:text-gray-900 transition-colors">Contact</a>
           </nav>
 
           <div className="flex items-center space-x-4">
@@ -254,16 +202,12 @@ export default function LandingPage() {
                   </div>
                   <span className="text-gray-900 font-medium">{user.name}</span>
                 </div>
-                <Button variant="outline" onClick={handleLogout}>
-                  Sign Out
-                </Button>
+                <Button variant="outline" onClick={handleLogout}>Sign Out</Button>
               </div>
             ) : (
               <>
                 <Dialog open={isSignInOpen} onOpenChange={setIsSignInOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost">Sign In</Button>
-                  </DialogTrigger>
+                  <DialogTrigger asChild><Button variant="ghost">Sign In</Button></DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Sign In</DialogTitle>
@@ -274,60 +218,26 @@ export default function LandingPage() {
                         <Label htmlFor="signin-email">Email</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="signin-email"
-                            type="email"
-                            placeholder="Enter your email"
-                            className="pl-10"
-                            value={signInData.email}
-                            onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                          />
+                          <Input id="signin-email" type="email" placeholder="Enter your email" className="pl-10" value={signInData.email} onChange={(e) => setSignInData({ ...signInData, email: e.target.value })} />
                         </div>
-                        {signInErrors.email && (
-                          <p className="text-sm text-red-600 flex items-center gap-1">
-                            <XCircle className="w-4 h-4" />
-                            {signInErrors.email}
-                          </p>
-                        )}
+                        {signInErrors.email && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="w-4 h-4" />{signInErrors.email}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="signin-password">Password</Label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="signin-password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            className="pl-10 pr-10"
-                            value={signInData.password}
-                            onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
+                          <Input id="signin-password" type={showPassword ? "text" : "password"} placeholder="Enter your password" className="pl-10 pr-10" value={signInData.password} onChange={(e) => setSignInData({ ...signInData, password: e.target.value })} />
+                          <button type="button" className="absolute right-3 top-3 text-gray-400 hover:text-gray-600" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                         </div>
-                        {signInErrors.password && (
-                          <p className="text-sm text-red-600 flex items-center gap-1">
-                            <XCircle className="w-4 h-4" />
-                            {signInErrors.password}
-                          </p>
-                        )}
+                        {signInErrors.password && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="w-4 h-4" />{signInErrors.password}</p>}
                       </div>
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? "Signing In..." : "Sign In"}
-                      </Button>
+                      <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? "Signing In..." : "Sign In"}</Button>
                     </form>
                   </DialogContent>
                 </Dialog>
 
                 <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
-                  <DialogTrigger asChild>
-                    <Button>Sign Up</Button>
-                  </DialogTrigger>
+                  <DialogTrigger asChild><Button>Sign Up</Button></DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Create Account</DialogTitle>
@@ -338,99 +248,37 @@ export default function LandingPage() {
                         <Label htmlFor="signup-name">Full Name</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="signup-name"
-                            type="text"
-                            placeholder="Enter your full name"
-                            className="pl-10"
-                            value={signUpData.name}
-                            onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
-                          />
+                          <Input id="signup-name" type="text" placeholder="Enter your full name" className="pl-10" value={signUpData.name} onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })} />
                         </div>
-                        {signUpErrors.name && (
-                          <p className="text-sm text-red-600 flex items-center gap-1">
-                            <XCircle className="w-4 h-4" />
-                            {signUpErrors.name}
-                          </p>
-                        )}
+                        {signUpErrors.name && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="w-4 h-4" />{signUpErrors.name}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="signup-email">Email</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="signup-email"
-                            type="email"
-                            placeholder="Enter your email"
-                            className="pl-10"
-                            value={signUpData.email}
-                            onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                          />
+                          <Input id="signup-email" type="email" placeholder="Enter your email" className="pl-10" value={signUpData.email} onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })} />
                         </div>
-                        {signUpErrors.email && (
-                          <p className="text-sm text-red-600 flex items-center gap-1">
-                            <XCircle className="w-4 h-4" />
-                            {signUpErrors.email}
-                          </p>
-                        )}
+                        {signUpErrors.email && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="w-4 h-4" />{signUpErrors.email}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="signup-password">Password</Label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="signup-password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Create a password"
-                            className="pl-10 pr-10"
-                            value={signUpData.password}
-                            onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
+                          <Input id="signup-password" type={showPassword ? "text" : "password"} placeholder="Create a password" className="pl-10 pr-10" value={signUpData.password} onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })} />
+                          <button type="button" className="absolute right-3 top-3 text-gray-400 hover:text-gray-600" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                         </div>
-                        {signUpErrors.password && (
-                          <p className="text-sm text-red-600 flex items-center gap-1">
-                            <XCircle className="w-4 h-4" />
-                            {signUpErrors.password}
-                          </p>
-                        )}
+                        {signUpErrors.password && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="w-4 h-4" />{signUpErrors.password}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="signup-confirm-password">Confirm Password</Label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="signup-confirm-password"
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="Confirm your password"
-                            className="pl-10 pr-10"
-                            value={signUpData.confirmPassword}
-                            onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
+                          <Input id="signup-confirm-password" type={showConfirmPassword ? "text" : "password"} placeholder="Confirm your password" className="pl-10 pr-10" value={signUpData.confirmPassword} onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })} />
+                          <button type="button" className="absolute right-3 top-3 text-gray-400 hover:text-gray-600" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>{showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                         </div>
-                        {signUpErrors.confirmPassword && (
-                          <p className="text-sm text-red-600 flex items-center gap-1">
-                            <XCircle className="w-4 h-4" />
-                            {signUpErrors.confirmPassword}
-                          </p>
-                        )}
+                        {signUpErrors.confirmPassword && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="w-4 h-4" />{signUpErrors.confirmPassword}</p>}
                       </div>
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? "Creating Account..." : "Create Account"}
-                      </Button>
+                      <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? "Creating Account..." : "Create Account"}</Button>
                     </form>
                   </DialogContent>
                 </Dialog>
@@ -439,77 +287,6 @@ export default function LandingPage() {
           </div>
         </div>
       </header>
-
-      {/* Hero Section */}
-      <main className="container mx-auto px-4 py-16">
-        <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Build Something
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Amazing</span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            Create, collaborate, and scale your ideas with our modern platform. Join thousands of developers who trust
-            us to bring their vision to life.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {!user && (
-              <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="text-lg px-8 py-6">
-                    Get Started Free
-                  </Button>
-                </DialogTrigger>
-              </Dialog>
-            )}
-            <Button variant="outline" size="lg" className="text-lg px-8 py-6 bg-transparent">
-              Learn More
-            </Button>
-          </div>
-        </div>
-
-        {/* Features Section */}
-        <section id="features" className="mt-24">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Choose ModernApp?</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Everything you need to build, deploy, and scale your applications with confidence.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4">
-                  <CheckCircle className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle>Easy to Use</CardTitle>
-                <CardDescription>Intuitive interface designed for developers of all skill levels.</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4">
-                  <CheckCircle className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle>Secure & Reliable</CardTitle>
-                <CardDescription>Enterprise-grade security with 99.9% uptime guarantee.</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-4">
-                  <CheckCircle className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle>Scale Globally</CardTitle>
-                <CardDescription>Deploy worldwide with our global CDN and edge computing.</CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-        </section>
-      </main>
-
       <Toaster />
     </div>
   )
