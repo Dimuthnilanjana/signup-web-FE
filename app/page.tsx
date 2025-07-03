@@ -287,6 +287,47 @@ export default function LandingPage() {
           </div>
         </div>
       </header>
+
+      {/* Hero Section */}
+      <main className="container mx-auto px-4 py-16">
+        <div className="text-center max-w-4xl mx-auto">
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+            Build Something
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Amazing</span>
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            Create, collaborate, and scale your ideas with our modern platform. Join thousands of developers who trust
+            us to bring their vision to life.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {!user && (
+              <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" className="text-lg px-8 py-6">
+                    Get Started Free
+                  </Button>
+                </DialogTrigger>
+              </Dialog>
+            )}
+            <Button variant="outline" size="lg" className="text-lg px-8 py-6 bg-transparent">
+              Learn More
+            </Button>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <section id="features" className="mt-24">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Choose ModernApp?</h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Everything you need to build, deploy, and scale your applications with confidence.
+            </p>
+          </div>
+
+          
+        </section>
+      </main>
+
       <Toaster />
     </div>
   )
